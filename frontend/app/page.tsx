@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, Product } from '@/lib/api';
+import NetworkLogo from '@/components/NetworkLogo';
 
 const NETWORKS = ['MTN Flexa', 'MTN', 'Telecel', 'AirtelTigo'];
 const NETWORK_COLOR: Record<string, string> = {
@@ -122,9 +123,7 @@ export default function StorefrontPage() {
             return (
               <section key={network} className="overflow-hidden rounded-2xl border" style={{ borderColor: `${color}55`, background }}>
                 <header className="flex items-center gap-3 px-4 py-4 sm:px-5">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white font-display text-xs font-bold shadow-sm" style={{ color }}>
-                    {network === 'AirtelTigo' ? 'AT' : network === 'Telecel' ? 'T' : 'MTN'}
-                  </span>
+                  <NetworkLogo network={network} />
                   <div>
                     <h2 className="font-display text-lg font-semibold">{network}</h2>
                     <p className="text-xs text-[var(--color-ink-muted)]">{items.length} bundles available</p>

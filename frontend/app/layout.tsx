@@ -20,9 +20,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen">
         <NavBar />
-        <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">{children}</main>
+        <main className="mx-auto min-h-[calc(100vh-150px)] max-w-6xl px-4 py-10 sm:px-6">{children}</main>
         <footer className="mt-16 border-t border-[var(--color-border)]">
-          <div className="mx-auto max-w-5xl px-4 py-6 text-xs text-[var(--color-ink-faint)] sm:px-6">
+          <div className="mx-auto max-w-6xl px-4 py-6 text-xs text-[var(--color-ink-faint)] sm:px-6">
             Freedom Data · Wallet purchases are non-refundable except where a dispatch fails and DataSika issues an automatic refund.
           </div>
         </footer>
