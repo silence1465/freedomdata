@@ -63,7 +63,7 @@ class AgentController extends Controller
             $user->save();
         }
 
-        $products = Product::where('is_available', true)->orderByRaw("FIELD(network, 'MTN', 'Telecel', 'AirtelTigo')")->orderBy('bundle_gb')->get();
+        $products = Product::where('is_available', true)->orderByRaw("CASE network WHEN 'MTN' THEN 1 WHEN 'Telecel' THEN 2 WHEN 'AirtelTigo' THEN 3 ELSE 4 END")->orderBy('bundle_gb')->get();
         $resellPrices = AgentResellPrice::where('user_id', $user->id)->pluck('resell_price', 'product_id');
         $orders = $user->orders()->with('product')->orderByDesc('created_at')->limit(20)->get();
 

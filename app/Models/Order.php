@@ -10,7 +10,7 @@ class Order extends Model
 
     public const TERMINAL = ['DELIVERED','FAILED','REFUNDED'];
 
-    protected $fillable = ['idempotency_key','data_sika_order_id','user_id','product_id','recipient','amount_charged','cost_amount','status','failure_reason','poll_attempts'];
+    protected $fillable = ['idempotency_key','data_sika_order_id','user_id','product_id','recipient','amount_charged','cost_amount','status','failure_reason','poll_attempts','payment_reference','payment_method','payment_screenshot'];
 
     protected function casts(): array
     {

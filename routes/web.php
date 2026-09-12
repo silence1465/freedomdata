@@ -190,6 +190,9 @@ Route::middleware(['auth', 'throttle:30,1'])->group(function () {
     Route::post('/agent/subscribe', [AgentController::class, 'processSubscription']);
     Route::get('/agent', [AgentController::class, 'dashboard'])->name('agent.dashboard');
     Route::post('/agent/prices', [AgentController::class, 'updatePrices'])->name('agent.prices');
+    Route::post('/agent/orders/{id}/approve', [ManualOrderController::class, 'approve'])->name('agent.orders.approve');
+    Route::post('/agent/orders/{id}/hold', [ManualOrderController::class, 'hold'])->name('agent.orders.hold');
+    Route::post('/agent/orders/{id}/reject', [ManualOrderController::class, 'reject'])->name('agent.orders.reject');
 
     Route::get('/payout', [PayoutController::class, 'index'])->name('payout');
     Route::post('/payout', [PayoutController::class, 'store'])->name('payout.store');

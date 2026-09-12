@@ -26,7 +26,7 @@ class AgentShopController extends Controller
         }
 
         $products = Product::where('is_available', true)
-            ->orderByRaw("FIELD(network, 'MTN', 'Telecel', 'AirtelTigo')")
+            ->orderByRaw("CASE network WHEN 'MTN' THEN 1 WHEN 'Telecel' THEN 2 WHEN 'AirtelTigo' THEN 3 ELSE 4 END")
             ->orderBy('bundle_gb')
             ->get();
 

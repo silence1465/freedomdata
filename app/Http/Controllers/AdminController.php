@@ -212,7 +212,7 @@ class AdminController extends Controller
     public function specialPricing()
     {
         $agents = User::where('role', 'AGENT')->orderBy('name')->get();
-        $products = Product::where('is_available', true)->orderByRaw("FIELD(network, 'MTN', 'Telecel', 'AirtelTigo')")->orderBy('bundle_gb')->get();
+        $products = Product::where('is_available', true)->orderByRaw("CASE network WHEN 'MTN' THEN 1 WHEN 'Telecel' THEN 2 WHEN 'AirtelTigo' THEN 3 ELSE 4 END")->orderBy('bundle_gb')->get();
         $selectedAgentId = request('agent_id');
         $specialPrices = [];
 

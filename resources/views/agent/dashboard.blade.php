@@ -101,7 +101,9 @@
                     <th class="p-3 font-medium">Recipient</th>
                     <th class="p-3 font-medium">Cost</th>
                     <th class="p-3 font-medium">Status</th>
+                    <th class="p-3 font-medium">Payment proof</th>
                     <th class="p-3 font-medium">Date</th>
+                    <th class="p-3 font-medium">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -110,8 +112,22 @@
                     <td class="p-3">{{ $o->product->network }} {{ intval($o->product->bundle_gb) }}GB</td>
                     <td class="p-3 font-mono">{{ $o->recipient }}</td>
                     <td class="p-3 font-mono">₵{{ number_format($o->amount_charged, 2) }}</td>
-                    <td class="p-3"><span class="badge badge-{{ strtolower($o->status) }}">{{ $o->status }}</span></td>
+                    <td class="p-3"><span class="badge badge-{{ strtolower($o->status) }}">{{ str_replace('_', ' ', $o->status) }}</span></td>
+                    <td class="p-3 text-xs">
+                        @if($o->payment_reference)<div class="font-mono">{{ $o->payment_reference }}</div>@endif
+                        @if($o->payment_screenshot)<a class="underline" target="_blank" href="{{ asset('storage/' . $o->payment_screenshot) }}">View screenshot</a>@endif
+                        @if(!$o->payment_reference && !$o->payment_screenshot)<span class="text-ink-faint">?</span>@endif
+                    </td>
                     <td class="p-3 text-ink-faint">{{ $o->created_at->diffForHumans() }}</td>
+                    <td class="p-3">
+                      @if(in_array($o->status, ['AWAITING_APPROVAL', 'ON_HOLD']))
+                        <div class="flex gap-1 flex-wrap">
+                          <form method="POST" action="/agent/orders/{{ $o->id }}/approve">@csrf<button class="btn-dark text-xs">Approve</button></form>
+                          @if($o->status === 'AWAITING_APPROVAL')<form method="POST" action="/agent/orders/{{ $o->id }}/hold">@csrf<button class="btn-gold text-xs">Hold</button></form>@endif
+                          <form method="POST" action="/agent/orders/{{ $o->id }}/reject">@csrf<button class="text-xs text-alert underline">Reject</button></form>
+                        </div>
+                      @else<span class="text-ink-faint">?</span>@endif
+                    </td>
                 </tr>
                 @endforeach
             </tbody>

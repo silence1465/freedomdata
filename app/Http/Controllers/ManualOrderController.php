@@ -12,25 +12,23 @@ use Illuminate\Support\Str;
 
 class ManualOrderController extends Controller
 {
-    /** Customer submits manual payment reference */
     public function store(Request $request)
     {
         $data = $request->validate([
             'product_id' => 'required|exists:products,id',
             'recipient' => 'required|regex:/^0\d{9}$/',
-            'payment_reference' => 'required|string|max:100',
+            'payment_reference' => 'required|string|max:100|unique:orders,payment_reference',
+            'payment_screenshot' => 'nullable|image|max:4096',
         ]);
 
         $product = Product::findOrFail($data['product_id']);
-        if (! $product->is_available) {
-            return back()->with('error', 'This bundle is currently unavailable.');
-        }
+        if (! $product->is_available) return back()->with('error', 'This bundle is currently unavailable.');
 
-        // Find or create guest user
         $guestUser = User::firstOrCreate(
             ['phone' => '0000000000'],
             ['name' => 'Guest Orders', 'password' => bcrypt(Str::random(32)), 'role' => 'CUSTOMER']
         );
+        $screenshot = $request->file('payment_screenshot')?->store('payment-screenshots', 'public');
 
         $order = Order::create([
             'id' => (string) Str::uuid(),
@@ -40,70 +38,62 @@ class ManualOrderController extends Controller
             'recipient' => $data['recipient'],
             'payment_reference' => $data['payment_reference'],
             'payment_method' => 'manual',
+            'payment_screenshot' => $screenshot,
             'amount_charged' => (float) $product->sell_price,
             'cost_amount' => (float) $product->cost_price,
             'status' => 'AWAITING_APPROVAL',
         ]);
 
-        // Notify all admins
-        $admins = User::where('role', 'ADMIN')->get();
-        foreach ($admins as $admin) {
-            Notification::send(
-                $admin->id,
-                'New manual payment',
-                "Manual payment for {$product->network} {$product->bundle_gb}GB to {$data['recipient']}. Ref: {$data['payment_reference']}",
-                'warning',
-                '/admin'
-            );
+        foreach (User::where('role', 'ADMIN')->get() as $admin) {
+            Notification::send($admin->id, 'New manual payment', "Manual payment for {$product->network} {$product->bundle_gb}GB to {$data['recipient']}. Ref: {$data['payment_reference']}", 'warning', '/admin');
         }
-
         return redirect("/track?phone={$data['recipient']}")->with('success', 'Your payment reference has been submitted. We will confirm and send your bundle shortly.');
     }
 
-    /** Admin approves manual order — triggers DataSika */
-    public function approve(string $id, DataSikaClient $ds, WalletService $wallet)
+    public function approve(Request $request, string $id, DataSikaClient $ds, WalletService $wallet)
     {
         $order = Order::with('product')->findOrFail($id);
-
-        if ($order->status !== 'AWAITING_APPROVAL') {
-            return back()->with('error', 'This order has already been processed.');
-        }
+        $this->authorizeOrderAction($request, $order);
+        if (! in_array($order->status, ['AWAITING_APPROVAL', 'ON_HOLD'], true)) return back()->with('error', 'This order has already been processed.');
 
         try {
             $result = $ds->buyData($order->product->data_sika_id, $order->recipient, 'manual-' . $order->id);
-            $order->update([
-                'data_sika_order_id' => $result['order_id'],
-                'status' => 'PENDING',
-            ]);
+            $order->update(['data_sika_order_id' => $result['order_id'], 'status' => 'PENDING']);
         } catch (\Exception $e) {
             return back()->with('error', 'DataSika error: ' . $e->getMessage());
         }
 
-        // If it was an agent shop order, credit commission to the agent
         $agent = User::find($order->user_id);
         if ($agent && $agent->role === 'AGENT') {
             $agentPrice = (float) ($order->product->agent_price ?? $order->product->sell_price);
-            $commission = round($order->amount_charged - $agentPrice, 2);
-            if ($commission > 0) {
-                $wallet->credit($agent->id, $commission, 'AGENT_COMMISSION', $order->id, 'manual_approved_' . $order->id);
-            }
-            Notification::send($agent->id, 'Order approved ✓', "Your customer's order for {$order->recipient} has been confirmed and is being processed.", 'success');
+            $commission = round((float) $order->amount_charged - $agentPrice, 2);
+            if ($commission > 0) $wallet->credit($agent->id, $commission, 'AGENT_COMMISSION', $order->id, 'manual_approved_' . $order->id);
+            Notification::send($agent->id, 'Order approved', "Your customer's order for {$order->recipient} is being processed.", 'success');
         }
-
-        return back()->with('success', "Order approved and sent to DataSika for {$order->recipient}.");
+        return back()->with('success', "Order approved and sent for {$order->recipient}.");
     }
 
-    /** Admin rejects manual order */
-    public function reject(string $id)
+    public function hold(Request $request, string $id)
     {
         $order = Order::findOrFail($id);
+        $this->authorizeOrderAction($request, $order);
+        if ($order->status !== 'AWAITING_APPROVAL') return back()->with('error', 'Only orders awaiting approval can be held.');
+        $order->update(['status' => 'ON_HOLD']);
+        return back()->with('success', 'Order placed on hold.');
+    }
 
-        if ($order->status !== 'AWAITING_APPROVAL') {
-            return back()->with('error', 'This order has already been processed.');
-        }
-
-        $order->update(['status' => 'FAILED', 'failure_reason' => 'Payment reference rejected by admin.']);
-
+    public function reject(Request $request, string $id)
+    {
+        $order = Order::findOrFail($id);
+        $this->authorizeOrderAction($request, $order);
+        if (! in_array($order->status, ['AWAITING_APPROVAL', 'ON_HOLD'], true)) return back()->with('error', 'This order has already been processed.');
+        $order->update(['status' => 'FAILED', 'failure_reason' => 'Payment reference rejected.']);
         return back()->with('success', 'Order rejected.');
+    }
+
+    private function authorizeOrderAction(Request $request, Order $order): void
+    {
+        $user = $request->user();
+        abort_unless($user && ($user->isAdmin() || ($user->isActiveAgent() && $order->user_id === $user->id)), 403);
     }
 }
