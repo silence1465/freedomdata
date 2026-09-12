@@ -8,6 +8,10 @@ import { PushNotificationsService } from './push-notifications.service';
 const MAX_PROOF_SIZE = 5 * 1024 * 1024;
 const PROOF_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
+function subscriptionActive(expiresAt: Date | null) {
+  return Boolean(expiresAt && expiresAt.getTime() > Date.now());
+}
+
 @Injectable()
 export class AgentStoresService {
   constructor(private prisma: PrismaService, private orders: OrdersService, private push: PushNotificationsService) {}
@@ -34,6 +38,8 @@ export class AgentStoresService {
 
     return {
       agentCode,
+      subscriptionExpiresAt: agent.agentSubscriptionExpiresAt,
+      subscriptionActive: subscriptionActive(agent.agentSubscriptionExpiresAt),
       requests: requests.map(({ proofData, ...request }) => ({ ...request, hasProof: Boolean(proofData) })),
     };
   }
@@ -41,9 +47,10 @@ export class AgentStoresService {
   async publicStore(code: string) {
     const agent = await this.prisma.user.findFirst({
       where: { agentCode: code, role: Role.AGENT },
-      select: { id: true, name: true, agentCode: true },
+      select: { id: true, name: true, agentCode: true, agentSubscriptionExpiresAt: true },
     });
     if (!agent) throw new NotFoundException('agent_store_not_found');
+    if (!subscriptionActive(agent.agentSubscriptionExpiresAt)) throw new ForbiddenException('agent_subscription_expired');
 
     const products = await this.prisma.product.findMany({
       where: { isAvailable: true },
@@ -64,6 +71,7 @@ export class AgentStoresService {
   async submit(code: string, dto: SubmitAgentStoreOrderDto, file?: { buffer: Buffer; mimetype: string; size: number }) {
     const agent = await this.prisma.user.findFirst({ where: { agentCode: code, role: Role.AGENT } });
     if (!agent) throw new NotFoundException('agent_store_not_found');
+    if (!subscriptionActive(agent.agentSubscriptionExpiresAt)) throw new ForbiddenException('agent_subscription_expired');
     if (!dto.transactionId?.trim() && !file) {
       throw new BadRequestException('transaction_id_or_proof_required');
     }
@@ -102,6 +110,8 @@ export class AgentStoresService {
   }
 
   async review(agentId: string, requestId: string, dto: ReviewAgentStoreOrderDto) {
+    const agent = await this.prisma.user.findUnique({ where: { id: agentId }, select: { agentSubscriptionExpiresAt: true } });
+    if (!agent || !subscriptionActive(agent.agentSubscriptionExpiresAt)) throw new ForbiddenException('agent_subscription_expired');
     const request = await this.prisma.agentStoreOrder.findFirst({ where: { id: requestId, agentId } });
     if (!request) throw new NotFoundException('store_order_not_found');
     if (request.status === AgentStoreOrderStatus.APPROVED || request.status === AgentStoreOrderStatus.REJECTED) {

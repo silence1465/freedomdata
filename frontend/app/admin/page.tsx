@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
 import PricingEditor from '@/components/PricingEditor';
+import AgentSubscriptions from '@/components/AgentSubscriptions';
 
 interface AdminOrder {
   id: string;
@@ -27,7 +28,7 @@ const STATUS_STYLE: Record<string, string> = {
 export default function AdminPage() {
   const router = useRouter();
   const [authChecked, setAuthChecked] = useState(false);
-  const [tab, setTab] = useState<'orders' | 'pricing'>('orders');
+  const [tab, setTab] = useState<'orders' | 'pricing' | 'agents'>('orders');
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [balance, setBalance] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -119,6 +120,9 @@ export default function AdminPage() {
         <TabButton active={tab === 'pricing'} onClick={() => setTab('pricing')}>
           Pricing
         </TabButton>
+        <TabButton active={tab === 'agents'} onClick={() => setTab('agents')}>
+          Agent subscriptions
+        </TabButton>
       </div>
 
       {tab === 'orders' ? (
@@ -159,8 +163,10 @@ export default function AdminPage() {
             </tbody>
           </table>
         </div>
-      ) : (
+      ) : tab === 'pricing' ? (
         <PricingEditor />
+      ) : (
+        <AgentSubscriptions />
       )}
     </div>
   );

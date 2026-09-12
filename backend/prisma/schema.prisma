@@ -49,6 +49,7 @@ model User {
   name          String?
   role          Role     @default(CUSTOMER)
   agentCode     String?  @unique
+  agentSubscriptionExpiresAt DateTime?
   walletBalance Decimal  @default(0) @db.Decimal(10, 2)
   createdAt     DateTime @default(now())
 
@@ -58,6 +59,7 @@ model User {
   pushSubscriptions PushSubscription[]
 
   @@index([role])
+  @@index([agentSubscriptionExpiresAt])
 }
 
 model PushSubscription {

@@ -11,6 +11,7 @@ import { QueueModule } from './queue/queue.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { PaymentsModule } from './payments/payments.module';
 import { AgentStoresModule } from './agent-stores/agent-stores.module';
+import { AdminAgentsModule } from './admin-agents/admin-agents.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { AgentStoresModule } from './agent-stores/agent-stores.module';
     RealtimeModule,
     PaymentsModule,
     AgentStoresModule,
+    AdminAgentsModule,
   ],
 })
 export class AppModule {}

@@ -29,6 +29,8 @@ export default function AgentPage() {
   const [orders, setOrders] = useState<AgentOrder[]>([]);
   const [requests, setRequests] = useState<StoreRequest[]>([]);
   const [agentCode, setAgentCode] = useState('');
+  const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState<string | null>(null);
+  const [subscriptionActive, setSubscriptionActive] = useState(false);
   const [balance, setBalance] = useState('0.00');
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
@@ -42,6 +44,8 @@ export default function AgentPage() {
     setOrders(orderResponse.data);
     setBalance(String(balanceResponse.data.balance));
     setAgentCode(storeResponse.data.agentCode);
+    setSubscriptionExpiresAt(storeResponse.data.subscriptionExpiresAt);
+    setSubscriptionActive(storeResponse.data.subscriptionActive);
     setRequests(storeResponse.data.requests);
   }
 
@@ -85,6 +89,10 @@ export default function AgentPage() {
       </div>
 
       {message && <div className="rounded-xl bg-[var(--color-gold-tint)] px-4 py-3 text-sm text-[var(--color-gold-dark)]">{message}</div>}
+
+      <div className={`rounded-xl px-4 py-3 text-sm ${subscriptionActive ? 'bg-[var(--color-signal-tint)] text-[var(--color-signal)]' : 'bg-[var(--color-alert-tint)] text-[var(--color-alert)]'}`}>
+        {subscriptionActive && subscriptionExpiresAt ? `Agent subscription active until ${new Date(subscriptionExpiresAt).toLocaleDateString()}.` : 'Agent subscription expired. Contact the administrator to extend it before accepting or approving orders.'}
+      </div>
 
       <AgentNotifications />
 
