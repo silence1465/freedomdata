@@ -19,6 +19,8 @@ export interface Product {
   bundleGb: string;
   serviceType: 'DATA_BUNDLE' | 'MTN_EXPRESS' | 'RESULT_CHECKER';
   price: string;
+  retailPrice: string;
+  hasAgentPrice: boolean;
 }
 
 export interface OrderTrackingInfo {

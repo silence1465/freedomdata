@@ -1,17 +1,19 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { ProductsService } from './products.service';
 import { ProductIdDto, SetPricingDto } from './products.dto';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt.guard';
 
 @Controller('products')
 export class ProductsController {
   constructor(private products: ProductsService) {}
 
   @Get()
-  async list(@Query('role') role?: 'CUSTOMER' | 'AGENT') {
-    return this.products.listStorefront(role ?? 'CUSTOMER');
+  @UseGuards(OptionalJwtAuthGuard)
+  async list(@Req() req: any) {
+    return this.products.listStorefront(req.user?.role === 'AGENT');
   }
 
   @Get('admin')

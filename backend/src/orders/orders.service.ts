@@ -36,14 +36,17 @@ export class OrdersService {
       throw new BadRequestException('invalid_recipient');
     }
 
-    const product = await this.products.findById(productId);
+    const [product, user] = await Promise.all([
+      this.products.findById(productId),
+      this.prisma.user.findUniqueOrThrow({ where: { id: userId } }),
+    ]);
     if (!product.isAvailable) {
       throw new BadRequestException('product_unavailable');
     }
 
     const orderId = randomUUID();
     const idempotencyKey = `order-${orderId}`;
-    const sellPrice = Number(product.sellPrice);
+    const sellPrice = Number(user.role === 'AGENT' && product.agentPrice ? product.agentPrice : product.sellPrice);
 
     // Create the order row first (status PENDING) so the wallet debit can reference
     // its id directly — avoids any ambiguity about which ledger entry belongs to it.

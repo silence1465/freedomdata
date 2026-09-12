@@ -74,7 +74,7 @@ export class ProductsService {
     return { created, updated };
   }
 
-  async listStorefront(role: 'CUSTOMER' | 'AGENT' = 'CUSTOMER') {
+  async listStorefront(isAgent = false) {
     const products = await this.prisma.product.findMany({
       where: { isAvailable: true },
       orderBy: [{ network: 'asc' }, { bundleGb: 'asc' }],
@@ -85,7 +85,9 @@ export class ProductsService {
       network: p.network,
       bundleGb: p.bundleGb,
       serviceType: p.serviceType,
-      price: role === 'AGENT' && p.agentPrice ? p.agentPrice : p.sellPrice,
+      price: isAgent && p.agentPrice ? p.agentPrice : p.sellPrice,
+      retailPrice: p.sellPrice,
+      hasAgentPrice: isAgent && Boolean(p.agentPrice),
     }));
   }
 
