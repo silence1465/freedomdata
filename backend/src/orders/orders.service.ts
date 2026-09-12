@@ -31,7 +31,11 @@ export class OrdersService {
    * If the DataSika call itself fails outright (not just returns Pending), the customer's
    * wallet debit is reversed immediately rather than waiting on a refund from DataSika.
    */
-  async placeOrder(userId: string, productId: string, recipient: string) {
+  async placeOrder(userId: string, productId: string, recipient: string, stableIdempotencyKey?: string) {
+    if (stableIdempotencyKey) {
+      const existing = await this.prisma.order.findUnique({ where: { idempotencyKey: stableIdempotencyKey } });
+      if (existing) return existing;
+    }
     if (!GHANA_PHONE_REGEX.test(recipient)) {
       throw new BadRequestException('invalid_recipient');
     }
@@ -45,7 +49,7 @@ export class OrdersService {
     }
 
     const orderId = randomUUID();
-    const idempotencyKey = `order-${orderId}`;
+    const idempotencyKey = stableIdempotencyKey ?? `order-${orderId}`;
     const sellPrice = Number(user.role === 'AGENT' && product.agentPrice ? product.agentPrice : product.sellPrice);
 
     // Create the order row first (status PENDING) so the wallet debit can reference

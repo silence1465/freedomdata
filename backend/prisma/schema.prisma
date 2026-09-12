@@ -34,6 +34,13 @@ enum LedgerType {
   ADJUSTMENT
 }
 
+enum AgentStoreOrderStatus {
+  SUBMITTED
+  HOLD
+  APPROVED
+  REJECTED
+}
+
 model User {
   id            String   @id @default(uuid())
   phone         String   @unique
@@ -41,11 +48,13 @@ model User {
   passwordHash  String
   name          String?
   role          Role     @default(CUSTOMER)
+  agentCode     String?  @unique
   walletBalance Decimal  @default(0) @db.Decimal(10, 2)
   createdAt     DateTime @default(now())
 
   orders        Order[]
   ledgerEntries WalletLedger[]
+  agentStoreOrders AgentStoreOrder[]
 
   @@index([role])
 }
@@ -64,6 +73,7 @@ model Product {
   createdAt    DateTime    @default(now())
 
   orders       Order[]
+  agentStoreOrders AgentStoreOrder[]
 
   @@index([network, serviceType])
 }
@@ -86,9 +96,35 @@ model Order {
   user             User         @relation(fields: [userId], references: [id])
   product          Product      @relation(fields: [productId], references: [id])
   ledgerEntries    WalletLedger[]
+  agentStoreRequest AgentStoreOrder?
 
   @@index([userId])
   @@index([status])
+}
+
+model AgentStoreOrder {
+  id              String                @id @default(uuid())
+  agentId         String
+  productId       String
+  orderId         String?               @unique
+  recipient       String
+  customerName    String?
+  customerPhone   String?
+  transactionId   String?               @unique
+  proofData       Bytes?                @db.LongBlob
+  proofMime       String?
+  status          AgentStoreOrderStatus @default(SUBMITTED)
+  reviewNote      String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  reviewedAt      DateTime?
+
+  agent            User    @relation(fields: [agentId], references: [id])
+  product          Product @relation(fields: [productId], references: [id])
+  order            Order?  @relation(fields: [orderId], references: [id])
+
+  @@index([agentId, status])
+  @@index([createdAt])
 }
 
 model WalletLedger {

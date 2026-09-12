@@ -10,6 +10,7 @@ import { DataSikaModule } from './datasika/datasika.module';
 import { QueueModule } from './queue/queue.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { PaymentsModule } from './payments/payments.module';
+import { AgentStoresModule } from './agent-stores/agent-stores.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { PaymentsModule } from './payments/payments.module';
     QueueModule,
     RealtimeModule,
     PaymentsModule,
+    AgentStoresModule,
   ],
 })
 export class AppModule {}
