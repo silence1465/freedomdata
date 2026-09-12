@@ -5,6 +5,10 @@ import NavBar from '@/components/NavBar';
 export const metadata: Metadata = {
   title: 'Freedom Data — Buy Data Bundles Instantly',
   description: 'Affordable MTN, Telecel and AirtelTigo data bundles with live delivery tracking.',
+  applicationName: 'Freedom Data',
+  manifest: '/manifest.webmanifest',
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Freedom Data' },
+  icons: { icon: '/icon-192.png', apple: '/icon-192.png' },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

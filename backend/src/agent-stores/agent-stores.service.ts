@@ -3,13 +3,14 @@ import { AgentStoreOrderStatus, Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrdersService } from '../orders/orders.service';
 import { AgentStoreReviewAction, ReviewAgentStoreOrderDto, SubmitAgentStoreOrderDto } from './agent-stores.dto';
+import { PushNotificationsService } from './push-notifications.service';
 
 const MAX_PROOF_SIZE = 5 * 1024 * 1024;
 const PROOF_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 @Injectable()
 export class AgentStoresService {
-  constructor(private prisma: PrismaService, private orders: OrdersService) {}
+  constructor(private prisma: PrismaService, private orders: OrdersService, private push: PushNotificationsService) {}
 
   private agentCode(userId: string) {
     return `freedom-${userId.replace(/-/g, '').slice(0, 16)}`;
@@ -86,6 +87,9 @@ export class AgentStoresService {
           proofMime: file?.mimetype,
         },
         include: { product: true },
+      });
+      void this.push.notifyNewPayment(agent.id, request).catch((error) => {
+        console.error('Could not send agent payment notification', error);
       });
       const { proofData, ...safeRequest } = request;
       return { ...safeRequest, hasProof: Boolean(proofData) };

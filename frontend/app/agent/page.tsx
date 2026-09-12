@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import NetworkLogo from '@/components/NetworkLogo';
 import { api, Product } from '@/lib/api';
+import AgentNotifications from '@/components/AgentNotifications';
 
 type ReviewStatus = 'SUBMITTED' | 'HOLD' | 'APPROVED' | 'REJECTED';
 interface StoreRequest {
@@ -84,6 +85,8 @@ export default function AgentPage() {
       </div>
 
       {message && <div className="rounded-xl bg-[var(--color-gold-tint)] px-4 py-3 text-sm text-[var(--color-gold-dark)]">{message}</div>}
+
+      <AgentNotifications />
 
       {shopUrl && <section className="rounded-2xl border border-[var(--color-border)] bg-white p-5"><h2 className="font-display font-semibold">Your customer store</h2><p className="mt-1 text-sm text-[var(--color-ink-muted)]">Share this link. Customers submit their transaction ID or payment screenshot for your approval.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><input readOnly value={shopUrl} onClick={(event) => event.currentTarget.select()} className="min-w-0 flex-1 rounded-lg border border-[var(--color-border-strong)] px-3 py-2.5 font-mono text-sm" /><button onClick={() => { navigator.clipboard.writeText(shopUrl); setMessage('Store link copied.'); }} className="rounded-lg bg-[var(--color-ink)] px-4 py-2.5 text-sm font-semibold text-white">Copy link</button><Link href={`/shop/${agentCode}`} className="rounded-lg border border-[var(--color-border-strong)] px-4 py-2.5 text-center text-sm font-semibold">Preview</Link></div></section>}
 

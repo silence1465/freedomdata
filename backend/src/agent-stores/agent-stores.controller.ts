@@ -1,15 +1,37 @@
-import { Body, Controller, Get, Param, Patch, Post, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
 import { Response } from 'express';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
-import { ReviewAgentStoreOrderDto, SubmitAgentStoreOrderDto } from './agent-stores.dto';
+import { RemovePushSubscriptionDto, ReviewAgentStoreOrderDto, SavePushSubscriptionDto, SubmitAgentStoreOrderDto } from './agent-stores.dto';
 import { AgentStoresService } from './agent-stores.service';
+import { PushNotificationsService } from './push-notifications.service';
 
 @Controller('agent-stores')
 export class AgentStoresController {
-  constructor(private stores: AgentStoresService) {}
+  constructor(private stores: AgentStoresService, private push: PushNotificationsService) {}
+
+  @Get('notifications/config')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('AGENT')
+  notificationConfig() {
+    return this.push.configuration();
+  }
+
+  @Post('notifications/subscribe')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('AGENT')
+  subscribe(@Req() req: any, @Body() body: SavePushSubscriptionDto) {
+    return this.push.subscribe(req.user.userId, body.endpoint, body.keys);
+  }
+
+  @Delete('notifications/subscribe')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('AGENT')
+  unsubscribe(@Req() req: any, @Body() body: RemovePushSubscriptionDto) {
+    return this.push.unsubscribe(req.user.userId, body.endpoint);
+  }
 
   @Get('me')
   @UseGuards(AuthGuard('jwt'), RolesGuard)

@@ -1,4 +1,5 @@
-import { IsEnum, IsOptional, IsString, IsUUID, Matches, MaxLength } from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsUrl, IsUUID, Matches, MaxLength, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class SubmitAgentStoreOrderDto {
   @IsUUID()
@@ -36,4 +37,26 @@ export class ReviewAgentStoreOrderDto {
   @IsString()
   @MaxLength(191)
   note?: string;
+}
+
+class PushSubscriptionKeysDto {
+  @IsString()
+  p256dh: string;
+
+  @IsString()
+  auth: string;
+}
+
+export class SavePushSubscriptionDto {
+  @IsUrl({ require_tld: false })
+  endpoint: string;
+
+  @ValidateNested()
+  @Type(() => PushSubscriptionKeysDto)
+  keys: PushSubscriptionKeysDto;
+}
+
+export class RemovePushSubscriptionDto {
+  @IsUrl({ require_tld: false })
+  endpoint: string;
 }
