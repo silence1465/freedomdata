@@ -1,119 +1,86 @@
-# DataSika Reseller Platform
+# Kwansika Data — Complete Reseller Platform
 
-A full reseller system on top of the DataSika Developer API v2: customer storefront with
-your own margins, a real-time order tracker (Socket.io — no SMS), an internal wallet with
-a full ledger, and an admin dashboard.
+A single Laravel app: data bundles (mock DataSika), USDT buy/sell desk, wallet with
+ledger, admin dashboard. Blade views + Vite + Tailwind 4 + MySQL.
 
-**Stack:** NestJS 11 + Prisma 7 + MySQL + BullMQ 5 (Redis) + Socket.io 4 · Next.js 16 + React 19 + Tailwind 4 · Paystack
+## Prerequisites
 
-All dependency versions in `backend/package.json` and `frontend/package.json` were checked
-against the npm registry at build time and confirmed to install with zero peer-dependency
-conflicts. The frontend was additionally run through a full `next build` and passed. The
-backend could not run `prisma generate` in this sandbox (the engine download host isn't on
-its network allowlist) — this will work normally in your own environment; see step 3 below.
+- PHP 8.2+ with extensions: mbstring, xml, curl, mysql
+- Composer
+- MySQL (XAMPP works)
+- Node.js 18+ (for Vite/Tailwind)
 
-## 1. Prerequisites
-
-- Node.js 20+
-- A MySQL database (local, PlanetScale, RDS, etc.)
-- A Redis instance (local, Upstash, Redis Cloud, etc.) — required for BullMQ
-- A DataSika API key (`dsk_live_...`)
-- A Paystack account (test keys are fine to start)
-
-## 2. Backend setup
+## Setup (5 minutes)
 
 ```bash
-cd backend
+# 1. Create the Laravel skeleton
+composer create-project laravel/laravel kwansika-app
+cd kwansika-app
+
+# 2. Copy ALL the files from this zip into the new project, overwriting where needed:
+#    app/         -> kwansika-app/app/
+#    database/    -> kwansika-app/database/     (ADD to existing migrations, don't delete theirs)
+#    resources/   -> kwansika-app/resources/
+#    routes/web.php -> kwansika-app/routes/web.php (overwrite)
+#    bootstrap/app.php -> kwansika-app/bootstrap/app.php (overwrite)
+#    vite.config.js -> kwansika-app/vite.config.js (overwrite)
+#    package.json -> kwansika-app/package.json (overwrite)
+#
+#    config/services.snippet.php -> MERGE into kwansika-app/config/services.php
+#    (add the 'datasika' and 'paystack' arrays into the existing return array)
+
+# 3. Configure .env
+#    DB_DATABASE=kwansika
+#    DB_USERNAME=root
+#    DB_PASSWORD=          (empty for XAMPP default)
+#    DATASIKA_API_KEY=mock (this enables mock mode — no real API key needed)
+
+# 4. Create the database in phpMyAdmin: kwansika
+
+# 5. Install everything
+composer require doctrine/dbal   # needed for the ->change() in the users migration
+php artisan key:generate
+php artisan migrate
 npm install
-cp .env.example .env
-# edit .env: DATABASE_URL, REDIS_HOST/PORT, JWT_SECRET, DATASIKA_API_KEY, PAYSTACK_SECRET_KEY
+npm run build                    # or npm run dev for hot reload
+
+# 6. Start
+php artisan serve
+# Visit http://localhost:8000
 ```
 
-## 3. Database
+## First steps after setup
 
-```bash
-npx prisma generate
-npx prisma migrate dev --name init
-```
+1. Register an account at /register
+2. Promote yourself to admin:
+   ```bash
+   php artisan tinker
+   >>> App\Models\User::where('phone', '0241234567')->update(['role' => 'ADMIN']);
+   ```
+3. Top up your wallet at /wallet (manual topup for testing)
+4. Buy a data bundle from the homepage — it uses mock DataSika and auto-delivers
+5. Check /admin for the full dashboard, /admin/pricing for bundle prices,
+   /admin/crypto for the USDT desk
 
-This creates the `User`, `Product`, `Order`, and `WalletLedger` tables in your MySQL database.
+## Mock mode
 
-> **Note on Prisma 7:** this is a very recent major version with a real breaking change —
-> connection URLs no longer live in `schema.prisma`. They're read from `prisma.config.ts`
-> (already included in `backend/`) for the CLI/migrate commands, and `PrismaService` builds
-> a `@prisma/adapter-mariadb` driver adapter from `DATABASE_URL` at runtime for the app
-> itself. You don't need to do anything extra beyond setting `DATABASE_URL` in `.env` —
-> just flagging it in case you're used to Prisma 6 and the shape looks unfamiliar.
+With `DATASIKA_API_KEY=mock` in .env, all data bundle purchases succeed instantly
+with a fake DataSika order ID and auto-deliver. When you get a real API key later,
+just replace `mock` with `dsk_live_...` in .env and restart — the same code path
+will call the real DataSika API.
 
-## 4. Run the backend
+## Pages
 
-```bash
-npm run start:dev
-```
+Customer:
+- `/`          — storefront (browse + buy bundles)
+- `/crypto`    — buy/sell USDT
+- `/track`     — order lookup
+- `/track/:id` — live order tracking (polls every 4s)
+- `/wallet`    — balance + transaction history + manual topup
+- `/login`     — log in
+- `/register`  — sign up
 
-This starts the API on `http://localhost:4000/api`, connects to Redis for the BullMQ
-queues, and immediately schedules a repeating catalog-sync job (every 10 minutes) that
-pulls DataSika's `/api-catalog` and upserts it into your `Product` table with your markup
-applied on first sync.
-
-**First-time setup:** create an account via `POST /api/auth/register`, then manually
-promote it to `ADMIN` in the database (`UPDATE User SET role='ADMIN' WHERE phone='...'`)
-so you can trigger `/api/products/sync` and set custom prices from the admin dashboard.
-
-## 5. Frontend setup
-
-```bash
-cd frontend
-npm install
-```
-
-Create `frontend/.env.local`:
-
-```
-NEXT_PUBLIC_API_URL=http://localhost:4000/api
-NEXT_PUBLIC_SOCKET_URL=http://localhost:4000
-```
-
-```bash
-npm run dev
-```
-
-Visit `http://localhost:3000`.
-
-## 6. Paystack webhook
-
-In your Paystack dashboard, point the webhook URL to:
-`https://your-backend-domain.com/api/payments/webhook/paystack`
-
-This is what actually credits a customer's wallet after a top-up — the frontend redirect
-callback is not trusted for this, since it can be closed or interrupted mid-flow.
-
-## How the real-time tracking works
-
-1. Customer buys a bundle → backend debits their wallet, calls DataSika's buy endpoint
-   with a deterministic `Idempotency-Key`, and stores the order as `PENDING`.
-2. A BullMQ job is enqueued to poll `/api-order-status` after 15s.
-3. Each poll either finds no change (re-enqueues with exponential backoff, capped at 60s)
-   or finds a status change — which it persists and pushes immediately over Socket.io to
-   anyone subscribed to that `order:<id>` or `user:<id>` room.
-4. The tracking page (`/track/[orderId]`) subscribes on load and updates live, with one
-   REST fallback fetch so it's never blank on first paint or after a reconnect.
-5. If DataSika refunds a failed dispatch, the processor automatically credits the
-   customer's wallet too, so you're never out of sync between the two ledgers.
-
-## What's scaffolded vs. what you should still add before going to production
-
-**Included:** auth (JWT), catalog sync with markup pricing, wallet + ledger, order
-placement + async tracking, Paystack top-ups, a bare-bones admin dashboard.
-
-**Worth adding next:**
-- MTN Express support in `datasika.client.ts#buyExpress` is a best-effort placeholder —
-  DataSika's docs don't publish the `/api-buy-express` request/response shape, only that
-  it exists (`use_express_endpoint` error) and returns `202` when uncertain. Confirm the
-  actual contract with DataSika before relying on it.
-- Rate-limit-aware request queuing on the buy side too (currently only the status poller
-  respects `retry_after`).
-- Bulk/CSV ordering for agents, sub-accounts, and a proper reconciliation report
-  (what you charged customers vs. what DataSika charged you).
-- Production hardening: input validation DTOs with `class-validator`, refresh tokens,
-  request logging, and moving the admin role check off a manual SQL update.
+Admin (only visible when role=ADMIN):
+- `/admin`         — dashboard with stats + order ledger
+- `/admin/pricing` — edit sell/agent price per bundle
+- `/admin/crypto`  — USDT rate settings + confirm/cancel orders
